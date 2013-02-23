@@ -1,5 +1,11 @@
 #!/bin/bash
 cd "$( dirname "$0" )"
+if [[ $(uname) == "Linux" && -f /etc/lsb-release ]]
+then
+	echo "This doesn't need to be run on ubuntu, it comes with it's own notification system."
+	chmod +x MCNotifier
+	exit
+fi
 if [[ ! -f /usr/bin/xcodebuild ]]
 then
 	echo "MCNotifier requires that you have Xcode installed, this is required to build certain dependencies for it to run correctly."
