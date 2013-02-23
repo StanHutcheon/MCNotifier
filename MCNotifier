@@ -5,64 +5,63 @@ then
 	echo "server.log doesn't exist, please run MCNotifier from your Minecraft Server root directory."	
 	exit
 fi
-sys=$(uname | sed "y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/");
+sys=$(uname);
 if [[ "$sys" == "Darwin" ]]
 then
-	while :
-	do
-		string=$(awk '/./{line=$0} END{print line}' server.log);
-		if [[ "$string" == *"logged in with entity id"* ]]
-		then
-			#user=$(php trimmer.php "$string"); # Old method of trimming the string, converted to bash only
-			string=$(echo "$string" | tr -d ' ');
-			collocation=$(gexpr index "$string" "]"); # gets the location of the first ] within the string
-			firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the username and the rest (ip etc)
-			twocollocation=$(gexpr index "$firsttrim" "["); # get the location of the next [ which is the open bracket for the IP address
-			twocollocation=$((twocollocation - 1));  # -1 from the location of the [ to avoid it being added to the final string
-			user=${firsttrim:0:$twocollocation};  # grab the substr of the trimmed string containing anything between the start of it (0) and the location of the next bracket 
-			terminal-notifier.app/Contents/MacOS/terminal-notifier -title "Minecraft Server" -subtitle "Player logged in:" -message "$user" -sound default
-			echo "." >> server.log # fix repeated notifications
-		fi
-
-		if [[ "$string" == *"[SEVERE]"* ]] # untested
-		then
-			#severe=$(php trimmer.php "$string" severe); # Old method of trimming the string, converted to bash only
-			collocation=$(gexpr index "$string" "]"); # gets the location of the first ] within the string
-			firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the severe error only
-			user=${firsttrim:1};  # grab the trimmed string except the first character (as it's whitespace)
-			terminal-notifier.app/Contents/MacOS/terminal-notifier -title "Minecraft Server" -subtitle "Severe error:" -message "$severe" -sound default
-			echo "." >> server.log # fix repeated notifications
-		fi
-		# anymore you want, let me know, or add them yourself, I hope this is enough info to get your head around it.
-	done
+	sysversion=$(sw_vers -productVersion);
+	if [[ ! "$sysversion" == *"10.8"* ]] # Check if OS X version is less than 10.8
+	then
+		echo "Mountain Lion is required for MCNotifier to work as it uses Notification Center to deliver information, Please consider upgrading to Mountain Lion or try it on another Mac."
+		exit
+	fi
+	expr=gexpr;
+	os=mac;
+	echo " OS = OS X $sysversion"
 fi
-if [[ "sys" == "Linux" && -f /etc/lsb-release ]] # experimental for ubuntu, can't test atm.
+if [[ "$sys" == "Linux" && -f /etc/lsb-release ]]
 then
-	while :
-	do
-		string=$(awk '/./{line=$0} END{print line}' server.log);
-		if [[ "$string" == *"logged in with entity id"* ]]
-		then
-			#user=$(php trimmer.php "$string"); # Old method of trimming the string, converted to bash only
-			string=$(echo "$string" | tr -d ' ');
-			collocation=$(expr index "$string" "]"); # gets the location of the first ] within the string
-			firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the username and the rest (ip etc)
-			twocollocation=$(expr index "$firsttrim" "["); # get the location of the next [ which is the open bracket for the IP address
-			twocollocation=$((twocollocation - 1));  # -1 from the location of the [ to avoid it being added to the final string
-			user=${firsttrim:0:$twocollocation};  # grab the substr of the trimmed string containing anything between the start of it (0) and the location of the next bracket 
-			notify-send -t 3000 "Player logged in:" "$user"
-			echo "." >> server.log # fix repeated notifications
-		fi
-
-		if [[ "$string" == *"[SEVERE]"* ]] # untested
-		then
-			#severe=$(php trimmer.php "$string" severe); # Old method of trimming the string, converted to bash only
-			collocation=$(gexpr index "$string" "]"); # gets the location of the first ] within the string
-			firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the severe error only
-			user=${firsttrim:1};  # grab the trimmed string except the first character (as it's whitespace)
-			notify-send -t 3000 "Severe error:" "$severe"
-			echo "." >> server.log # fix repeated notifications
-		fi
-		# anymore you want, let me know, or add them yourself, I hope this is enough info to get your head around it.
-	done
+	expr=expr;
+	os=ubuntu;
+	echo ""
+	echo " OS = Ubuntu"
+	echo "* Ubuntu support is untested, report back to me if it works!"
 fi
+while :
+do
+	string=$(awk '/./{line=$0} END{print line}' server.log);
+	if [[ "$string" == *"logged in with entity id"* ]]
+	then
+		string=$(echo "$string" | tr -d ' ');
+		collocation=$($expr index "$string" "]"); # gets the location of the first ] within the string
+		firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the username and the rest (ip etc)
+		twocollocation=$($expr index "$firsttrim" "["); # get the location of the next [ which is the open bracket for the IP address
+		twocollocation=$((twocollocation - 1));  # -1 from the location of the [ to avoid it being added to the final string
+		user=${firsttrim:0:$twocollocation};  # grab the substr of the trimmed string containing anything between the start of it (0) and the location of the next bracket
+		if [[ "$os" == "mac" ]]
+		then
+			terminal-notifier.app/Contents/MacOS/terminal-notifier -title "Minecraft Server" -subtitle "Player logged in:" -message "$user" -sound default
+		fi
+		if [[ "$os" == "ubuntu" ]] # ubuntu support, untested
+		then
+			notify-send -t 3000 "Player logged in:" "$user"
+		fi
+		echo "." >> server.log # fix repeated notifications
+	fi
+
+	if [[ "$string" == *"[SEVERE]"* ]]
+	then
+		collocation=$($expr index "$string" "]"); # gets the location of the first ] within the string
+		firsttrim=${string:$collocation}; # removes anything before the first ] found, leaving the severe error only
+		severe=${firsttrim:1};  # grab the trimmed string except the first character (as it's whitespace)
+		if [[ "$os" == "mac" ]] 
+		then
+			terminal-notifier.app/Contents/MacOS/terminal-notifier -title "Minecraft Server" -subtitle "Severe error:" -message "$severe" -sound default
+		fi
+		if [[ "$os" == "ubuntu" ]] # ubuntu support, untested
+		then
+			notify-send -t 3500 "Severe error:" "$severe"
+		fi
+		echo "." >> server.log # fix repeated notifications
+	fi
+	# anymore you want, let me know, or add them yourself, I hope this is enough info to get your head around it.
+done

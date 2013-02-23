@@ -1,9 +1,16 @@
 #!/bin/bash
 cd "$( dirname "$0" )"
-if [[ $(uname) == "Linux" && -f /etc/lsb-release ]]
+sys=$(uname);
+if [[ sys == "Linux" && -f /etc/lsb-release ]]
 then
-	echo "This doesn't need to be run on ubuntu, it comes with it's own notification system."
 	chmod +x MCNotifier
+	echo "Place the files into your Minecraft Server root directory (containing server.log) and run MCNotifier!"
+	exit
+fi
+sysversion=$(sw_vers -productVersion);
+if [[ ! "$sysversion" == *"10.8"* ]] # Check if OS X version is less than 10.8
+then
+	echo "Mountain Lion is required for MCNotifier to work as it uses Notification Center to deliver information, Please consider upgrading to Mountain Lion or try it on another Mac."
 	exit
 fi
 if [[ ! -f /usr/bin/xcodebuild ]]
